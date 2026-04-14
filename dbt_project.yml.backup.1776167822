@@ -1,5 +1,5 @@
 # dbt project for payments 3NF normalization (silver layer)
-name: 'payments3nf'
+name: '3nf_payments'
 version: '1.0.0'
 config-version: 2
 
@@ -8,7 +8,7 @@ profile: '3nf-payments-dbt'
 model-paths: ["models"]
 analysis-paths: ["analyses"]
 test-paths: ["tests"]
-seed-paths: ["data"]
+data-paths: ["data"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 target-path: "target"
@@ -17,7 +17,7 @@ clean-targets:
   - "dbt_packages"
 
 models:
-  payments3nf:
+  3nf_payments:
     # Staging layer (bronze to staging)
     staging:
       +materialized: view
