@@ -1,0 +1,271 @@
+version: 2
+
+sources:
+  - name: payments_raw
+    description: "Raw payments data from PostgreSQL ingestion (payments_v1 dataset)"
+    database: prd-dagen
+    schema: payments_v1
+    tables:
+      - name: customers
+        description: "Customer master data - all customers in the system"
+        columns:
+          - name: customer_id
+            description: "Unique customer identifier (PK)"
+            tests:
+              - unique
+              - not_null
+          - name: email
+            description: "Customer email address"
+            tests:
+              - not_null
+          - name: phone_number
+            description: "Customer phone number"
+          - name: kyc_status
+            description: "Know Your Customer verification status"
+          - name: risk_profile
+            description: "Customer risk classification"
+          - name: created_at
+            description: "Record creation timestamp"
+            tests:
+              - not_null
+
+      - name: transactions
+        description: "Payment transactions - core transactional events"
+        columns:
+          - name: transaction_id
+            description: "Unique transaction identifier (PK)"
+            tests:
+              - unique
+              - not_null
+          - name: debtor_customer_id
+            description: "Customer ID of the payer (FK to customers)"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('payments_raw', 'customers')
+                  field: customer_id
+          - name: creditor_customer_id
+            description: "Customer ID of the recipient (FK to customers)"
+            tests:
+              - relationships:
+                  to: source('payments_raw', 'customers')
+                  field: customer_id
+          - name: payment_method_id
+            description: "Payment method used (FK to payment_methods)"
+            tests:
+              - relationships:
+                  to: source('payments_raw', 'payment_methods')
+                  field: payment_method_id
+          - name: amount
+            description: "Transaction amount"
+            tests:
+              - not_null
+          - name: currency
+            description: "Currency code (ISO 4217)"
+            tests:
+              - not_null
+          - name: status
+            description: "Transaction status (pending, completed, failed, cancelled)"
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['pending', 'completed', 'failed', 'cancelled']
+          - name: created_at
+            description: "Transaction creation timestamp"
+            tests:
+              - not_null
+
+      - name: payment_methods
+        description: "Payment methods registered by customers"
+        columns:
+          - name: payment_method_id
+            description: "Unique payment method identifier (PK)"
+            tests:
+              - unique
+              - not_null
+          - name: customer_id
+            description: "Customer who owns this payment method (FK to customers)"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('payments_raw', 'customers')
+                  field: customer_id
+          - name: method_type
+            description: "Type of payment method (card, bank_account, wallet, etc.)"
+            tests:
+              - not_null
+          - name: is_default
+            description: "Whether this is the customer's default payment method"
+            tests:
+              - not_null
+
+      - name: mandates
+        description: "Standing mandates for recurring payments"
+        columns:
+          - name: mandate_id
+            description: "Unique mandate identifier (PK)"
+            tests:
+              - unique
+              - not_null
+          - name: customer_id
+            description: "Customer who owns this mandate (FK to customers)"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('payments_raw', 'customers')
+                  field: customer_id
+          - name: payment_method_id
+            description: "Associated payment method (FK to payment_methods)"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('payments_raw', 'payment_methods')
+                  field: payment_method_id
+          - name: status
+            description: "Mandate status (active, suspended, cancelled)"
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['active', 'suspended', 'cancelled']
+
+      - name: disputes
+        description: "Transaction disputes and chargebacks"
+        columns:
+          - name: dispute_id
+            description: "Unique dispute identifier (PK)"
+            tests:
+              - unique
+              - not_null
+          - name: transaction_id
+            description: "Associated transaction (FK to transactions)"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('payments_raw', 'transactions')
+                  field: transaction_id
+          - name: reason
+            description: "Dispute reason code"
+            tests:
+              - not_null
+          - name: amount
+            description: "Dispute amount"
+            tests:
+              - not_null
+          - name: status
+            description: "Dispute status (open, resolved, won, lost)"
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['open', 'resolved', 'won', 'lost']
+          - name: created_at
+            description: "Dispute creation timestamp"
+            tests:
+              - not_null
+
+      - name: refunds
+        description: "Refund transactions"
+        columns:
+          - name: refund_id
+            description: "Unique refund identifier (PK)"
+            tests:
+              - unique
+              - not_null
+          - name: original_transaction_id
+            description: "Original transaction being refunded (FK to transactions)"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('payments_raw', 'transactions')
+                  field: transaction_id
+          - name: amount
+            description: "Refund amount"
+            tests:
+              - not_null
+          - name: reason
+            description: "Reason for refund"
+            tests:
+              - not_null
+          - name: status
+            description: "Refund status (pending, completed, failed)"
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['pending', 'completed', 'failed']
+
+      - name: payouts
+        description: "Payout transactions to customers"
+        columns:
+          - name: payout_id
+            description: "Unique payout identifier (PK)"
+            tests:
+              - unique
+              - not_null
+          - name: recipient_customer_id
+            description: "Customer receiving the payout (FK to customers)"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('payments_raw', 'customers')
+                  field: customer_id
+          - name: amount
+            description: "Payout amount"
+            tests:
+              - not_null
+          - name: status
+            description: "Payout status (pending, scheduled, executed, failed)"
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['pending', 'scheduled', 'executed', 'failed']
+          - name: scheduled_at
+            description: "Scheduled execution timestamp"
+          - name: executed_at
+            description: "Actual execution timestamp"
+
+      - name: fees
+        description: "Transaction fees"
+        columns:
+          - name: fee_id
+            description: "Unique fee identifier (PK)"
+            tests:
+              - unique
+              - not_null
+          - name: transaction_id
+            description: "Associated transaction (FK to transactions)"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('payments_raw', 'transactions')
+                  field: transaction_id
+          - name: amount
+            description: "Fee amount"
+            tests:
+              - not_null
+          - name: fee_type
+            description: "Type of fee (processing, interchange, gateway, etc.)"
+            tests:
+              - not_null
+
+      - name: transaction_legs
+        description: "Individual legs of multi-leg transactions"
+        columns:
+          - name: transaction_leg_id
+            description: "Unique transaction leg identifier (PK)"
+            tests:
+              - unique
+              - not_null
+          - name: transaction_id
+            description: "Parent transaction (FK to transactions)"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('payments_raw', 'transactions')
+                  field: transaction_id
+          - name: leg_sequence
+            description: "Sequence number for this leg in the transaction"
+            tests:
+              - not_null
+          - name: amount
+            description: "Amount for this leg"
+            tests:
+              - not_null

@@ -1,0 +1,608 @@
+version: 2
+
+models:
+  # ============================================================================
+  # STAGING LAYER (Views - Data Cleaning & Flattening)
+  # ============================================================================
+
+  - name: stg_customers
+    description: "Staging view for customer data - cleaned and flattened"
+    columns:
+      - name: customer_id
+        description: "Unique customer identifier"
+        tests:
+          - unique
+          - not_null
+      - name: email
+        description: "Customer email address"
+        tests:
+          - not_null
+      - name: phone_number
+        description: "Customer phone number"
+      - name: kyc_status
+        description: "KYC verification status"
+      - name: risk_profile
+        description: "Customer risk classification"
+      - name: created_at
+        description: "Record creation timestamp"
+        tests:
+          - not_null
+      - name: created_date
+        description: "Record creation date"
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"
+
+  - name: stg_transactions
+    description: "Staging view for transaction data - cleaned and flattened"
+    columns:
+      - name: transaction_id
+        description: "Unique transaction identifier"
+        tests:
+          - unique
+          - not_null
+      - name: debtor_customer_id
+        description: "Customer ID of the payer"
+        tests:
+          - not_null
+      - name: creditor_customer_id
+        description: "Customer ID of the recipient"
+      - name: payment_method_id
+        description: "Payment method used"
+      - name: amount
+        description: "Transaction amount"
+        tests:
+          - not_null
+      - name: currency
+        description: "Currency code (ISO 4217)"
+        tests:
+          - not_null
+      - name: status
+        description: "Transaction status"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['pending', 'completed', 'failed', 'cancelled']
+      - name: created_at
+        description: "Transaction timestamp"
+        tests:
+          - not_null
+      - name: created_date
+        description: "Transaction date"
+      - name: is_completed
+        description: "Flag indicating if transaction completed"
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"
+
+  - name: stg_payment_methods
+    description: "Staging view for payment methods - cleaned and flattened"
+    columns:
+      - name: payment_method_id
+        description: "Unique payment method identifier"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Customer who owns this payment method"
+        tests:
+          - not_null
+      - name: method_type
+        description: "Type of payment method"
+        tests:
+          - not_null
+      - name: is_default
+        description: "Whether this is the default payment method"
+        tests:
+          - not_null
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"
+
+  - name: stg_mandates
+    description: "Staging view for mandates - cleaned and flattened"
+    columns:
+      - name: mandate_id
+        description: "Unique mandate identifier"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Customer who owns this mandate"
+        tests:
+          - not_null
+      - name: payment_method_id
+        description: "Associated payment method"
+        tests:
+          - not_null
+      - name: status
+        description: "Mandate status"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['active', 'suspended', 'cancelled']
+      - name: is_active
+        description: "Flag indicating if mandate is active"
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"
+
+  - name: stg_disputes
+    description: "Staging view for disputes - cleaned and flattened"
+    columns:
+      - name: dispute_id
+        description: "Unique dispute identifier"
+        tests:
+          - unique
+          - not_null
+      - name: transaction_id
+        description: "Associated transaction"
+        tests:
+          - not_null
+      - name: reason
+        description: "Dispute reason"
+        tests:
+          - not_null
+      - name: amount
+        description: "Dispute amount"
+        tests:
+          - not_null
+      - name: status
+        description: "Dispute status"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['open', 'resolved', 'won', 'lost']
+      - name: created_at
+        description: "Dispute creation timestamp"
+        tests:
+          - not_null
+      - name: created_date
+        description: "Dispute creation date"
+      - name: is_resolved
+        description: "Flag indicating if dispute is resolved"
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"
+
+  - name: stg_refunds
+    description: "Staging view for refunds - cleaned and flattened"
+    columns:
+      - name: refund_id
+        description: "Unique refund identifier"
+        tests:
+          - unique
+          - not_null
+      - name: original_transaction_id
+        description: "Original transaction being refunded"
+        tests:
+          - not_null
+      - name: amount
+        description: "Refund amount"
+        tests:
+          - not_null
+      - name: reason
+        description: "Refund reason"
+        tests:
+          - not_null
+      - name: status
+        description: "Refund status"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['pending', 'completed', 'failed']
+      - name: is_completed
+        description: "Flag indicating if refund completed"
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"
+
+  - name: stg_payouts
+    description: "Staging view for payouts - cleaned and flattened"
+    columns:
+      - name: payout_id
+        description: "Unique payout identifier"
+        tests:
+          - unique
+          - not_null
+      - name: recipient_customer_id
+        description: "Customer receiving the payout"
+        tests:
+          - not_null
+      - name: amount
+        description: "Payout amount"
+        tests:
+          - not_null
+      - name: status
+        description: "Payout status"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['pending', 'scheduled', 'executed', 'failed']
+      - name: scheduled_at
+        description: "Scheduled execution timestamp"
+      - name: executed_at
+        description: "Actual execution timestamp"
+      - name: is_executed
+        description: "Flag indicating if payout executed"
+      - name: execution_delay_minutes
+        description: "Minutes between scheduled and executed time"
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"
+
+  - name: stg_fees
+    description: "Staging view for fees - cleaned and flattened"
+    columns:
+      - name: fee_id
+        description: "Unique fee identifier"
+        tests:
+          - unique
+          - not_null
+      - name: transaction_id
+        description: "Associated transaction"
+        tests:
+          - not_null
+      - name: amount
+        description: "Fee amount"
+        tests:
+          - not_null
+      - name: fee_type
+        description: "Type of fee"
+        tests:
+          - not_null
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"
+
+  - name: stg_transaction_legs
+    description: "Staging view for transaction legs - cleaned and flattened"
+    columns:
+      - name: transaction_leg_id
+        description: "Unique transaction leg identifier"
+        tests:
+          - unique
+          - not_null
+      - name: transaction_id
+        description: "Parent transaction"
+        tests:
+          - not_null
+      - name: leg_sequence
+        description: "Sequence number for this leg"
+        tests:
+          - not_null
+      - name: amount
+        description: "Amount for this leg"
+        tests:
+          - not_null
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"
+
+  # ============================================================================
+  # SILVER LAYER - DIMENSIONS (3NF Normalized)
+  # ============================================================================
+
+  - name: dim_customer
+    description: "3NF Customer Dimension - One row per customer"
+    columns:
+      - name: customer_id
+        description: "Primary Key - Unique customer identifier"
+        tests:
+          - unique
+          - not_null
+      - name: email
+        description: "Customer email address"
+        tests:
+          - unique
+          - not_null
+      - name: phone_number
+        description: "Customer phone number"
+      - name: kyc_status
+        description: "KYC verification status"
+        tests:
+          - not_null
+      - name: risk_profile
+        description: "Customer risk classification"
+      - name: created_at
+        description: "Customer creation timestamp"
+        tests:
+          - not_null
+      - name: created_date
+        description: "Customer creation date"
+      - name: dbt_updated_at
+        description: "Timestamp of last update"
+      - name: dbt_valid_from
+        description: "Record valid from date"
+
+  - name: dim_payment_method
+    description: "3NF Payment Method Dimension - One row per payment method"
+    columns:
+      - name: payment_method_id
+        description: "Primary Key - Unique payment method identifier"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Foreign Key - Customer who owns this payment method"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: method_type
+        description: "Type of payment method (card, bank_account, wallet, etc.)"
+        tests:
+          - not_null
+      - name: is_default
+        description: "Whether this is the customer's default payment method"
+        tests:
+          - not_null
+      - name: dbt_updated_at
+        description: "Timestamp of last update"
+      - name: dbt_valid_from
+        description: "Record valid from date"
+
+  - name: dim_mandate
+    description: "3NF Mandate Dimension - One row per standing mandate"
+    columns:
+      - name: mandate_id
+        description: "Primary Key - Unique mandate identifier"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Foreign Key - Customer who owns this mandate"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: payment_method_id
+        description: "Foreign Key - Associated payment method"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_payment_method')
+              field: payment_method_id
+      - name: status
+        description: "Mandate status (active, suspended, cancelled)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['active', 'suspended', 'cancelled']
+      - name: is_active
+        description: "Flag indicating if mandate is active"
+      - name: dbt_updated_at
+        description: "Timestamp of last update"
+      - name: dbt_valid_from
+        description: "Record valid from date"
+
+  # ============================================================================
+  # SILVER LAYER - FACTS (3NF Normalized)
+  # ============================================================================
+
+  - name: fact_transaction
+    description: "3NF Transaction Fact - One row per transaction with dimensional references"
+    columns:
+      - name: transaction_id
+        description: "Primary Key - Unique transaction identifier"
+        tests:
+          - unique
+          - not_null
+      - name: debtor_customer_id
+        description: "Foreign Key - Customer who is paying"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: creditor_customer_id
+        description: "Foreign Key - Customer who is receiving payment"
+        tests:
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: payment_method_id
+        description: "Foreign Key - Payment method used"
+        tests:
+          - relationships:
+              to: ref('dim_payment_method')
+              field: payment_method_id
+      - name: transaction_amount
+        description: "Transaction amount (before fees)"
+        tests:
+          - not_null
+      - name: total_fees
+        description: "Total fees charged for this transaction"
+      - name: net_amount
+        description: "Net amount (transaction_amount - total_fees)"
+      - name: currency
+        description: "Currency code (ISO 4217)"
+        tests:
+          - not_null
+      - name: status
+        description: "Transaction status"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['pending', 'completed', 'failed', 'cancelled']
+      - name: is_completed
+        description: "Flag indicating if transaction completed"
+      - name: created_at
+        description: "Transaction creation timestamp"
+        tests:
+          - not_null
+      - name: created_date
+        description: "Transaction creation date"
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"
+
+  - name: fact_refund
+    description: "3NF Refund Fact - One row per refund transaction"
+    columns:
+      - name: refund_id
+        description: "Primary Key - Unique refund identifier"
+        tests:
+          - unique
+          - not_null
+      - name: original_transaction_id
+        description: "Foreign Key - Original transaction being refunded"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fact_transaction')
+              field: transaction_id
+      - name: debtor_customer_id
+        description: "Foreign Key - Original debtor customer"
+        tests:
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: creditor_customer_id
+        description: "Foreign Key - Original creditor customer"
+        tests:
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: refund_amount
+        description: "Refund amount"
+        tests:
+          - not_null
+      - name: refund_reason
+        description: "Reason for refund"
+        tests:
+          - not_null
+      - name: refund_status
+        description: "Refund status"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['pending', 'completed', 'failed']
+      - name: is_completed
+        description: "Flag indicating if refund completed"
+      - name: currency
+        description: "Currency code"
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"
+
+  - name: fact_dispute
+    description: "3NF Dispute Fact - One row per dispute/chargeback"
+    columns:
+      - name: dispute_id
+        description: "Primary Key - Unique dispute identifier"
+        tests:
+          - unique
+          - not_null
+      - name: transaction_id
+        description: "Foreign Key - Associated transaction"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fact_transaction')
+              field: transaction_id
+      - name: debtor_customer_id
+        description: "Foreign Key - Original debtor customer"
+        tests:
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: creditor_customer_id
+        description: "Foreign Key - Original creditor customer"
+        tests:
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: dispute_amount
+        description: "Dispute amount"
+        tests:
+          - not_null
+      - name: dispute_reason
+        description: "Reason for dispute"
+        tests:
+          - not_null
+      - name: dispute_status
+        description: "Dispute status"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['open', 'resolved', 'won', 'lost']
+      - name: is_resolved
+        description: "Flag indicating if dispute is resolved"
+      - name: currency
+        description: "Currency code"
+      - name: created_at
+        description: "Dispute creation timestamp"
+        tests:
+          - not_null
+      - name: created_date
+        description: "Dispute creation date"
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"
+
+  - name: fact_payout
+    description: "3NF Payout Fact - One row per payout transaction"
+    columns:
+      - name: payout_id
+        description: "Primary Key - Unique payout identifier"
+        tests:
+          - unique
+          - not_null
+      - name: recipient_customer_id
+        description: "Foreign Key - Customer receiving payout"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: payout_amount
+        description: "Payout amount"
+        tests:
+          - not_null
+      - name: payout_status
+        description: "Payout status"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['pending', 'scheduled', 'executed', 'failed']
+      - name: is_executed
+        description: "Flag indicating if payout executed"
+      - name: scheduled_at
+        description: "Scheduled execution timestamp"
+      - name: executed_at
+        description: "Actual execution timestamp"
+      - name: execution_delay_minutes
+        description: "Minutes between scheduled and executed time"
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"
+
+  - name: fact_fee
+    description: "3NF Fee Fact - One row per fee charged"
+    columns:
+      - name: fee_id
+        description: "Primary Key - Unique fee identifier"
+        tests:
+          - unique
+          - not_null
+      - name: transaction_id
+        description: "Foreign Key - Associated transaction"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fact_transaction')
+              field: transaction_id
+      - name: debtor_customer_id
+        description: "Foreign Key - Debtor customer"
+        tests:
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: creditor_customer_id
+        description: "Foreign Key - Creditor customer"
+        tests:
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: fee_amount
+        description: "Fee amount"
+        tests:
+          - not_null
+      - name: fee_type
+        description: "Type of fee"
+        tests:
+          - not_null
+      - name: currency
+        description: "Currency code"
+      - name: dbt_loaded_at
+        description: "Timestamp when record was loaded by dbt"

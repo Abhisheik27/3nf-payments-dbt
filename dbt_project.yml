@@ -1,0 +1,66 @@
+# dbt project for payments 3NF normalization (silver layer)
+name: '3nf_payments_dbt'
+version: '1.0.0'
+config-version: 2
+
+profile: '3nf_payments_dbt'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+data-paths: ["data"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  3nf_payments_dbt:
+    # Staging layer (bronze to staging)
+    staging:
+      +materialized: view
+      +schema: staging
+      +tags: ["staging"]
+      +description: "Staging views for raw payments data - flattening and cleaning"
+
+    # Silver layer (3NF normalization)
+    intermediate:
+      +materialized: table
+      +schema: intermediate
+      +tags: ["silver"]
+      
+      # Dimensions
+      dimensions:
+        +description: "3NF dimension tables"
+        dim_customer:
+          +unique_id: "customer_id"
+        dim_payment_method:
+          +unique_id: "payment_method_id"
+        dim_mandate:
+          +unique_id: "mandate_id"
+      
+      # Facts
+      facts:
+        +description: "3NF fact tables"
+        fact_transaction:
+          +unique_id: "transaction_id"
+        fact_refund:
+          +unique_id: "refund_id"
+        fact_dispute:
+          +unique_id: "dispute_id"
+        fact_payout:
+          +unique_id: "payout_id"
+        fact_fee:
+          +unique_id: "fee_id"
+
+vars:
+  # Source dataset configuration
+  source_dataset: "payments_v1"
+  staging_dataset: "staging"
+  silver_dataset: "intermediate"
+  
+  # Data quality thresholds
+  null_threshold: 0.05  # Allow up to 5% nulls
+  duplicate_threshold: 0.01  # Allow up to 1% duplicates
